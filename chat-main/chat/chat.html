@@ -1,0 +1,295 @@
+<!-- simple chat webpage -->
+
+<!-- it is not a complete chat application and it is not optimized correctly-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- meta datas -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chat</title>
+
+    <!-- some style  -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        .container {
+            height: 100%;
+            background-color: rgb(202, 154, 154);
+            display: flex;
+        }
+
+        .container .contacts {
+            width: 25%;
+            height: fit-content;
+            background-color: orange;
+            display: flex;
+            flex-direction: column;
+            overflow-y: scroll;
+        }
+
+        .container .contacts .contact {
+            background-color: aqua;
+            margin: 2%;
+            padding: 1%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container .chatts {
+            background-color: blueviolet;
+            width: 75%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container .chatts .wrapper-chat {
+            background-color: yellow;
+            height: 90%;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container .chatts .wrapper-chat .chatts-contact {
+            display: flex;
+            justify-content: center;
+            background-color: chartreuse;
+            height: 15%;
+        }
+
+        .container .chatts .wrapper-chat .chatts-contact h1 {
+            padding: 1%;
+            margin: 1%;
+        }
+
+        .container .chatts .wrapper-chat .chat {
+            display: flex;
+        }
+
+        .to {
+            padding-left: 55%;
+            justify-content: end;
+            margin: 1%;
+            background-color: brown;
+            color: white;
+        }
+
+        .from {
+            width: 40%;
+            margin: 1%;
+            background-color: cyan;
+        }
+
+        .container .chatts .options {
+            display: flex;
+            background-color: tomato;
+            height: 10%;
+        }
+
+        .container .chatts .options .input {
+            width: 100%;
+            display: flex;
+            background-color: rgb(156, 156, 206);
+            justify-content: center;
+        }
+
+        .container .chatts .options .input input {
+            width: 80%;
+            margin: 1%;
+            border-radius: 1rem;
+            font-size: xx-large;
+        }
+
+        .container .chatts .options .button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 20%;
+            background-color: silver;
+        }
+
+        .container .chatts .options .button button {
+            width: 50%;
+            height: 50%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- contents -->
+    <div class="container">
+        <div class="contacts">
+
+            <!-- active remaining users -->
+            <h1 id="online"> 0 online</h1>
+        </div>
+        <div class="chatts">
+            <div class="wrapper-chat">
+                <div class="chatts-contact">
+
+                    <!-- user name displays here -->
+                    <h1 id="contact-name">click the users to chat</h1>
+                </div>
+
+                <!-- conversation goes here -->
+                <div class="conversation">
+
+                </div>
+
+            </div>
+
+            <div class="options">
+                <!-- getting input-->
+                <div class="input">
+                    <input type="text" id="input" class="input">
+                </div>
+
+                <!-- send button -->
+                <div class="button">
+                    <button id="send">send</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- scripts -->
+    <script>
+
+        // function for creating a contact
+        function create_contact(name) {
+            let div = document.createElement("div")
+            let contact = document.createElement("h1")
+            contact.innerText = name
+            div.className = "contact "
+            div.append(contact)
+            let parent = document.querySelector(".contacts")
+            parent.append(div)
+        }
+
+        // function for creating messages
+        function create_message(msg, type) {
+            let div = document.createElement("div")
+            let contact = document.createElement("h1")
+            contact.innerText = msg
+            div.className = "chat " + type
+            let parent = document.querySelector(".conversation")
+            div.append(contact)
+            parent.append(div)
+        }
+
+        // getting username 
+        let name = prompt("name", "demo")
+
+        // to store users and messages
+        let userArr = []
+        let messages = []
+
+        // initializing SSE
+        let sse = new EventSource(`/sse?name=${name}`)
+
+        // listening for the data from the server in SSE
+        sse.addEventListener("message", ev => {
+            if (ev.data.startsWith("newUser")) {
+                let user = ev.data.split(" ")[1]
+                if (!userArr.includes(user)) {
+                    userArr.push(user)
+                    let online = document.getElementById("online")
+                    online.innerText = ""
+                    online.innerText = userArr.length + " online"
+                    create_contact(user)
+                }
+            }
+
+            // notify the disconnected user
+            else if (ev.data.startsWith("disconnected")) {
+                let user = ev.data.split(" ")[1]
+                for (let i in userArr) {
+                    if (userArr[i] == user) {
+                        userArr.splice(i, 1)
+                    }
+                }
+                alert(user + " disconnected")
+
+                // change the online users length
+                let online = document.getElementById("online")
+                online.innerText = ""
+                online.innerText = userArr.length + " online"
+
+            }
+
+            // adding messages
+            else if (ev.lastEventId) {
+                messages.push([ev.lastEventId, ev.data, "from"])
+                show(messages)
+            }
+        })
+
+        let contact = document.querySelector(".contacts")
+
+        // display the messages
+        function show(type) {
+            let head = document.getElementById("contact-name")
+            let parent = document.querySelector(".conversation")
+            parent.innerHTML = ""
+            for (let i in messages) {
+                if (messages[i][0] == head.textContent) {
+                    create_message(messages[i][1], messages[i][2])
+                }
+            }
+        }
+
+        // selecting the contact in contacts list
+        contact.addEventListener("click", ev => {
+            let name = ev.target.textContent
+            let head = document.getElementById("contact-name")
+            head.innerText = name
+            show(messages)
+
+        })
+
+        // send message to other contacts
+        let btn = document.getElementById("send")
+        btn.addEventListener("click", ev => {
+            let msg = document.getElementById("input")
+            let to = document.getElementById("contact-name").textContent
+            let obj = { msg: msg.value, name, to }
+
+            messages.push([to, msg.value, "to"])
+            show(messages)
+            fetch("/message", { method: "post", body: JSON.stringify(obj) })
+                .then(ful => {
+                    return ful.text()
+                })
+                .then(ful => {
+                    if(ful.startsWith("error")){
+                        alert("unknown user in the online list")
+                    }
+                })
+                .catch(err=>{
+                    alert("something wrong")
+                })
+            msg.value = " "
+        })
+    </script>
+
+</body>
+
+</html>
